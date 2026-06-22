@@ -1,0 +1,749 @@
+openapi: 3.0.0
+info:
+  title: TodoList API
+  version: 1.0.0
+  description: |
+    개인용 TodoList 앱 MVP를 위한 REST API 명세입니다.
+    지원 범위는 이메일/비밀번호 회원가입, JWT 로그인, 개인 Todo 생성/조회/완료 상태 변경/삭제입니다.
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+  - url: https://api.example.com/api/v1
+    description: Production server
+tags:
+  - name: Auth
+    description: 회원가입 및 로그인 API
+  - name: Todos
+    description: 인증된 사용자의 Todo 관리 API
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: 회원가입
+      description: 이메일과 비밀번호로 새 사용자를 등록하고 JWT 액세스 토큰을 발급합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            examples:
+              default:
+                summary: 회원가입 요청
+                value:
+                  email: user@example.com
+                  password: StrongPass123!
+      responses:
+        '201':
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: 회원가입 성공 응답
+                  value:
+                    message: User signed up successfully.
+                    data:
+                      accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example
+                      tokenType: Bearer
+                      expiresIn: 3600
+                      user:
+                        id: 8f4d4f31-6ac8-4b5c-8b4f-6f7fda12a001
+                        email: user@example.com
+                        createdAt: '2026-06-22T14:30:00Z'
+        '400':
+          description: 잘못된 JSON 또는 요청 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                malformedJson:
+                  summary: JSON 형식 오류
+                  value:
+                    error:
+                      code: BAD_REQUEST
+                      message: Request body is not valid JSON.
+        '409':
+          description: 이미 가입된 이메일
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicateEmail:
+                  summary: 이메일 중복
+                  value:
+                    error:
+                      code: EMAIL_ALREADY_EXISTS
+                      message: An account with this email already exists.
+        '422':
+          description: 요청 데이터 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: 필수값 누락 또는 형식 오류
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Request validation failed.
+                      fieldErrors:
+                        email:
+                          - Email must be a valid email address.
+                        password:
+                          - Password must be at least 8 characters long.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: 로그인
+      description: 등록된 이메일과 비밀번호를 검증하고 JWT 액세스 토큰을 발급합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                summary: 로그인 요청
+                value:
+                  email: user@example.com
+                  password: StrongPass123!
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: 로그인 성공 응답
+                  value:
+                    message: Login successful.
+                    data:
+                      accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example
+                      tokenType: Bearer
+                      expiresIn: 3600
+                      user:
+                        id: 8f4d4f31-6ac8-4b5c-8b4f-6f7fda12a001
+                        email: user@example.com
+                        createdAt: '2026-06-22T14:30:00Z'
+        '400':
+          description: 잘못된 JSON 또는 요청 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                malformedJson:
+                  summary: JSON 형식 오류
+                  value:
+                    error:
+                      code: BAD_REQUEST
+                      message: Request body is not valid JSON.
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  summary: 이메일 또는 비밀번호 불일치
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: Invalid email or password.
+        '422':
+          description: 요청 데이터 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: 필수값 누락 또는 형식 오류
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Request validation failed.
+                      fieldErrors:
+                        email:
+                          - Email is required.
+                        password:
+                          - Password is required.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+  /todos:
+    get:
+      tags:
+        - Todos
+      summary: Todo 목록 조회
+      description: 인증된 사용자의 Todo 목록을 생성일 최신순으로 조회합니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Todo 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoListResponse'
+              examples:
+                withItems:
+                  summary: Todo 목록이 있는 경우
+                  value:
+                    message: Todos retrieved successfully.
+                    data:
+                      items:
+                        - id: 2fd3be8d-d849-4a3e-92fc-8db6bca11001
+                          title: Buy groceries
+                          isCompleted: false
+                          createdAt: '2026-06-22T14:45:00Z'
+                        - id: 2fd3be8d-d849-4a3e-92fc-8db6bca11002
+                          title: Finish PRD review
+                          isCompleted: true
+                          createdAt: '2026-06-22T14:40:00Z'
+                empty:
+                  summary: 빈 목록
+                  value:
+                    message: Todos retrieved successfully.
+                    data:
+                      items: []
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: 토큰 누락 또는 무효
+                  value:
+                    error:
+                      code: UNAUTHORIZED
+                      message: Authentication is required.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+    post:
+      tags:
+        - Todos
+      summary: Todo 생성
+      description: 인증된 사용자의 새 Todo를 생성합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+            examples:
+              default:
+                summary: Todo 생성 요청
+                value:
+                  title: Buy groceries
+      responses:
+        '201':
+          description: Todo 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItemResponse'
+              examples:
+                success:
+                  summary: 생성 성공 응답
+                  value:
+                    message: Todo created successfully.
+                    data:
+                      id: 2fd3be8d-d849-4a3e-92fc-8db6bca11001
+                      title: Buy groceries
+                      isCompleted: false
+                      createdAt: '2026-06-22T14:45:00Z'
+        '400':
+          description: 잘못된 JSON 또는 요청 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                malformedJson:
+                  summary: JSON 형식 오류
+                  value:
+                    error:
+                      code: BAD_REQUEST
+                      message: Request body is not valid JSON.
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: 토큰 누락 또는 무효
+                  value:
+                    error:
+                      code: UNAUTHORIZED
+                      message: Authentication is required.
+        '422':
+          description: 요청 데이터 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: 제목 검증 실패
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Request validation failed.
+                      fieldErrors:
+                        title:
+                          - Title must not be empty.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+  /todos/{todoId}:
+    patch:
+      tags:
+        - Todos
+      summary: Todo 완료 상태 변경
+      description: 인증된 사용자의 Todo 완료 상태를 목표 상태로 변경합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: todoId
+          in: path
+          required: true
+          description: 완료 상태를 변경할 Todo ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoCompletionRequest'
+            examples:
+              markComplete:
+                summary: 완료 처리 요청
+                value:
+                  isCompleted: true
+              markIncomplete:
+                summary: 미완료 처리 요청
+                value:
+                  isCompleted: false
+      responses:
+        '200':
+          description: Todo 완료 상태 변경 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItemResponse'
+              examples:
+                success:
+                  summary: 상태 변경 성공 응답
+                  value:
+                    message: Todo completion updated successfully.
+                    data:
+                      id: 2fd3be8d-d849-4a3e-92fc-8db6bca11001
+                      title: Buy groceries
+                      isCompleted: true
+                      createdAt: '2026-06-22T14:45:00Z'
+        '400':
+          description: 잘못된 JSON 또는 요청 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                malformedJson:
+                  summary: JSON 형식 오류
+                  value:
+                    error:
+                      code: BAD_REQUEST
+                      message: Request body is not valid JSON.
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: 토큰 누락 또는 무효
+                  value:
+                    error:
+                      code: UNAUTHORIZED
+                      message: Authentication is required.
+        '404':
+          description: Todo를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: 본인 소유 Todo가 없는 경우
+                  value:
+                    error:
+                      code: TODO_NOT_FOUND
+                      message: Todo not found.
+        '422':
+          description: 요청 데이터 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: 완료 상태 검증 실패
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Request validation failed.
+                      fieldErrors:
+                        isCompleted:
+                          - isCompleted must be a boolean.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+    delete:
+      tags:
+        - Todos
+      summary: Todo 삭제
+      description: 인증된 사용자의 Todo를 삭제합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: todoId
+          in: path
+          required: true
+          description: 삭제할 Todo ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Todo 삭제 성공
+          content: {}
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: 토큰 누락 또는 무효
+                  value:
+                    error:
+                      code: UNAUTHORIZED
+                      message: Authentication is required.
+        '404':
+          description: Todo를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: 본인 소유 Todo가 없는 경우
+                  value:
+                    error:
+                      code: TODO_NOT_FOUND
+                      message: Todo not found.
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: 서버 오류
+                  value:
+                    error:
+                      code: INTERNAL_SERVER_ERROR
+                      message: Unexpected server error.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 8f4d4f31-6ac8-4b5c-8b4f-6f7fda12a001
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-06-22T14:30:00Z'
+
+    Todo:
+      type: object
+      required:
+        - id
+        - title
+        - isCompleted
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 2fd3be8d-d849-4a3e-92fc-8db6bca11001
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Buy groceries
+        isCompleted:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-06-22T14:45:00Z'
+
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: StrongPass123!
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: StrongPass123!
+
+    AuthData:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+        - user
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example
+        tokenType:
+          type: string
+          enum:
+            - Bearer
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
+
+    AuthResponse:
+      type: object
+      required:
+        - message
+        - data
+      properties:
+        message:
+          type: string
+          example: Login successful.
+        data:
+          $ref: '#/components/schemas/AuthData'
+
+    CreateTodoRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Buy groceries
+
+    UpdateTodoCompletionRequest:
+      type: object
+      required:
+        - isCompleted
+      properties:
+        isCompleted:
+          type: boolean
+          example: true
+
+    TodoItemResponse:
+      type: object
+      required:
+        - message
+        - data
+      properties:
+        message:
+          type: string
+          example: Todo created successfully.
+        data:
+          $ref: '#/components/schemas/Todo'
+
+    TodoListData:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Todo'
+
+    TodoListResponse:
+      type: object
+      required:
+        - message
+        - data
+      properties:
+        message:
+          type: string
+          example: Todos retrieved successfully.
+        data:
+          $ref: '#/components/schemas/TodoListData'
+
+    FieldErrors:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      example:
+        email:
+          - Email must be a valid email address.
+
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed.
+        fieldErrors:
+          $ref: '#/components/schemas/FieldErrors'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
